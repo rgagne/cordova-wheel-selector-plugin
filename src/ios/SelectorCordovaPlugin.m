@@ -78,10 +78,15 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 - (UIView *)createPickerView {
   // Initialize container view
   UIView *view = [[UIView alloc] initWithFrame:CGRectMake(0, [self getSafeBottomPadding], self.viewSize.width, 260 + [self getSafeBottomPadding])];
+  /* remove build error
   if (@available(iOS 13, *)) {
       [view setBackgroundColor:[UIColor systemBackgroundColor]];
   }
   else if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) {
+    [view setBackgroundColor:[UIColor colorWithRed:0.97 green:0.97 blue:0.97 alpha:1.0]];
+  }
+  */
+  if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) {
     [view setBackgroundColor:[UIColor colorWithRed:0.97 green:0.97 blue:0.97 alpha:1.0]];
   }
 
