@@ -77,15 +77,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 
 - (UIView *)createPickerView {
   // Initialize container view
-  UIView *view = [[UIView alloc] initWithFrame:CGRectMake(0, [self getSafeBottomPadding], self.viewSize.width, 260 + [self getSafeBottomPadding])];
-  /* remove build error
-  if (@available(iOS 13, *)) {
-      [view setBackgroundColor:[UIColor systemBackgroundColor]];
-  }
-  else if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) {
-    [view setBackgroundColor:[UIColor colorWithRed:0.97 green:0.97 blue:0.97 alpha:1.0]];
-  }
-  */
+  UIView *view = [[UIView alloc] initWithFrame:CGRectMake(0, [self getSafeBottomPadding], self.viewSize.width, 260 + [self getSafeBottomPadding])];  
   if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) {
     [view setBackgroundColor:[UIColor colorWithRed:0.97 green:0.97 blue:0.97 alpha:1.0]];
   }
@@ -199,12 +191,14 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
   [self.webView.superview addSubview:self.modalView];
   [self.webView.superview bringSubviewToFront:self.modalView];
 
+
+  // [_modalView.subviews[0] setFrame: CGRectOffset(viewFrame, 0, viewFrame.size.height - (260 + [self getSafeBottomPadding]) - [self getSafeBottomPadding])];
   // Present the view animated
   [UIView animateWithDuration:0.3
                         delay:0.0
                       options: 0
                    animations:^{
-                     [_modalView.subviews[0] setFrame: CGRectOffset(viewFrame, 0, viewFrame.size.height - (260 + [self getSafeBottomPadding]) - [self getSafeBottomPadding])];
+                     [_modalView.subviews[0] setFrame: CGRectOffset(viewFrame, 0, viewFrame.size.height - (260 + [self getSafeBottomPadding]))];
                      [_modalView setBackgroundColor:[UIColor colorWithWhite:0.0 alpha:0.5]];
                    }
                    completion:nil];
@@ -316,9 +310,8 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 }
 
 - (NSString *)pickerView:(UIPickerView *)pickerView titleForRow:(NSInteger)row forComponent:(NSInteger)component {
-  NSString* label = [NSString stringWithFormat:@"%@ mins", _items[component][row]];
-  // return _items[component][row];
-  return label;
+  // NSString* label = [NSString stringWithFormat:@"%@ mins", _items[component][row]];
+  return _items[component][row];
 }
 
 - (CGFloat)pickerView:(UIPickerView *)pickerView widthForComponent:(NSInteger)component {
