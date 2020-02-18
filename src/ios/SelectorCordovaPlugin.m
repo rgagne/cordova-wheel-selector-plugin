@@ -356,7 +356,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
     CGFloat bottomPadding = 0.0f;
     if (@available(iOS 11.0, *)) {
         UIWindow *window = UIApplication.sharedApplication.keyWindow;
-        bottomPadding = window.safeAreaInsets.bottom;
+        bottomPadding = window.safeAreaInsets.bottom + 30; // add some extra padding
     }
 
     return bottomPadding;
