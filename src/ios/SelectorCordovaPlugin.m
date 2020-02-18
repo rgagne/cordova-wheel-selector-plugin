@@ -303,8 +303,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
     pickerLabel.font = [UIFont fontWithName:@"SourceSansPro-Semibold" size:[[_options objectForKey:@"fontSize"] floatValue]];
     pickerLabel.textAlignment=NSTextAlignmentCenter;
   }
-  NSString* label = [NSString stringWithFormat:@"%@ lbs", _items[component][row] ];
-  [pickerLabel setText:label];
+  [pickerLabel setText:_items[component][row]];
   return pickerLabel;
 }
 
@@ -317,11 +316,15 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 }
 
 - (NSString *)pickerView:(UIPickerView *)pickerView titleForRow:(NSInteger)row forComponent:(NSInteger)component {
-  return _items[component][row];
+  NSString* label = [NSString stringWithFormat:@"%@ mins", _items[component][row]];
+  // return _items[component][row];
+  return label;
 }
 
 - (CGFloat)pickerView:(UIPickerView *)pickerView widthForComponent:(NSInteger)component {
-  if (self.items.count >= 2) {
+  if (self.items.count == 2) {
+    return ((pickerView.frame.size.width) / 2) - 40;
+  } else if (self.items.count > 2) {
     return (pickerView.frame.size.width) / self.items.count;
   } else {
     return pickerView.frame.size.width - 20;
@@ -357,7 +360,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
     CGFloat bottomPadding = 0.0f;
     if (@available(iOS 11.0, *)) {
         UIWindow *window = UIApplication.sharedApplication.keyWindow;
-        bottomPadding = window.safeAreaInsets.bottom + 30; // add some extra padding
+        bottomPadding = window.safeAreaInsets.bottom + 60; // add some extra padding
     }
 
     return bottomPadding;
