@@ -303,7 +303,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
     pickerLabel.font = [UIFont fontWithName:@"SourceSansPro-Semibold" size:[[_options objectForKey:@"fontSize"] floatValue]];
     pickerLabel.textAlignment=NSTextAlignmentCenter;
   }
-  NSString* label = [NSString stringWithFormat:@"%@ lbs", _items[component][row]] ];
+  NSString* label = [NSString stringWithFormat:@"%@ lbs", _items[component][row] ];
   [pickerLabel setText:label];
   return pickerLabel;
 }
