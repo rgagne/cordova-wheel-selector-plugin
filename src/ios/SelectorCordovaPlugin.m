@@ -180,8 +180,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
                                                name:UIApplicationWillChangeStatusBarOrientationNotification
                                              object:nil];
 
-  // CGRect viewFrame = CGRectMake(0, [self getSafeBottomPadding], self.viewSize.width, self.viewSize.height);
-  CGRect viewFrame = CGRectMake(0, 0, self.viewSize.width, self.viewSize.height);
+  CGRect viewFrame = CGRectMake(0, [self getSafeBottomPadding] - 80, self.viewSize.width, self.viewSize.height);
   [view setFrame:CGRectMake(0, viewFrame.size.height, viewFrame.size.width, 260 + [self getSafeBottomPadding])];
 
   _modalView = [[UIView alloc] initWithFrame:viewFrame];
@@ -353,7 +352,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
     CGFloat bottomPadding = 0.0f;
     if (@available(iOS 11.0, *)) {
         UIWindow *window = UIApplication.sharedApplication.keyWindow;
-        bottomPadding = window.safeAreaInsets.bottom + 60; // add some extra padding
+        bottomPadding = window.safeAreaInsets.bottom + 80; // add some extra padding
     }
 
     return bottomPadding;
