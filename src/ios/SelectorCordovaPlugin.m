@@ -79,7 +79,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
   // Initialize container view
   UIView *view = [[UIView alloc] initWithFrame:CGRectMake(0, [self getSafeBottomPadding], self.viewSize.width, 280 + [self getSafeBottomPadding])];  
   if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) {
-    [view setBackgroundColor:[UIColor colorWithRed:0.125 green:0.125 blue:0.125 alpha:1.0]];
+    [view setBackgroundColor:[UIColor colorWithRed:0.97 green:0.97 blue:0.97 alpha:1.0]];
   }
 
   // Initialize toolbar
@@ -121,9 +121,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
   // Create title label aligned to center and appropriate spacers
   UILabel *label =[[UILabel alloc] initWithFrame:CGRectMake(0, 0, 180, 30)];
   [label setTextAlignment:NSTextAlignmentCenter];
-  // rgagne: switch to a dark mode
-  // [label setTextColor:(NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) ? [UIColor blackColor] : [UIColor whiteColor]];
-  [label setTextColor: [UIColor whiteColor]];
+  [label setTextColor:(NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) ? [UIColor blackColor] : [UIColor whiteColor]];
   [label setFont:[UIFont boldSystemFontOfSize:[[_options objectForKey:@"fontSize"] floatValue]]];
   [label setBackgroundColor:[UIColor clearColor]];
   [label setText:[_options objectForKey:@"title"]];
