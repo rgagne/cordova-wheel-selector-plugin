@@ -286,7 +286,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 - (void)pickerView:(UIPickerView *)pickerView didSelectRow:(NSInteger)row inComponent:(NSInteger)component {
   // The parameters named row and component represents what was selected.
   NSString* key = [NSString stringWithFormat:@"%li", (long)component];
-  Boolean timeRange = [[_options objectForKey:@"timeRange"] Boolean];
+  Boolean timeRange = [[_options objectForKey:@"timeRange"] boolValue];
   [_itemsSelectedIndexes setValue:@(row) forKey:key];
 
   if (timeRange && component == 0 && row < 23) {
