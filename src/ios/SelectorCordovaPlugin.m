@@ -1,324 +1,371 @@
-/********* PhotoViewer.m Cordova Plugin Implementation *******/
+#import "SelectorCordovaPlugin.h"
 
-#import <Cordova/CDV.h>
-#import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
-#import <MobileCoreServices/MobileCoreServices.h>
+#import <Cordova/CDVAvailability.h>
 
-@interface PhotoViewer : CDVPlugin <UIDocumentInteractionControllerDelegate, UIScrollViewDelegate> {
-    // Member variables go here.
-    Boolean isOpen;
-    UIScrollView *fullView;
-    UIImageView *imageView;
-    UIButton *closeBtn;
-    UILabel *imageLabel;
-    BOOL showCloseBtn;
-    BOOL copyToReference;
-    NSDictionary *headers;
-}
 
-@property (nonatomic, strong) UIDocumentInteractionController *docInteractionController;
-@property (nonatomic, strong) NSMutableArray *documentURLs;
+#define IS_WIDESCREEN ( fabs( ( double )[ [ UIScreen mainScreen ] bounds ].size.height - ( double )568 ) < DBL_EPSILON )
+#define IS_IPAD UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad
+#define DEVICE_ORIENTATION [UIDevice currentDevice].orientation
 
-- (void)show:(CDVInvokedUrlCommand*)command;
+// UIInterfaceOrientationMask vs. UIInterfaceOrientation
+// A function like this isn't available in the API. It is derived from the enum def for
+// UIInterfaceOrientationMask.
+#define OrientationMaskSupportsOrientation(mask, orientation)   ((mask & (1 << orientation)) != 0)
+
+typedef NS_ENUM(NSInteger, SelectorResultType) {
+  SelectorResultTypeCanceled = 0,
+  SelectorResultTypeDone = 1
+};
+
+@interface SelectorCordovaPlugin () <UIActionSheetDelegate, UIPopoverControllerDelegate, UIPickerViewDelegate, UIPickerViewDataSource>
+
+@property (nonatomic, copy) NSString* callbackId;
+@property (nonatomic, strong) NSMutableDictionary *options;
+@property (nonatomic, strong) UIPickerView *pickerView;
+@property (nonatomic, strong) UIPopoverController *popoverController;
+@property (nonatomic, strong) UIView *modalView;
+@property (nonatomic, strong) NSArray *items;
+@property (nonatomic, strong) NSMutableDictionary *itemsSelectedIndexes;
+
 @end
 
+@implementation SelectorCordovaPlugin
+
+- (void)showSelector:(CDVInvokedUrlCommand *)command {
+  _callbackId = command.callbackId;
+
+  // NOTE: All default options are assumed to be set in JS code
+  _options = [command.arguments objectAtIndex:0];
+  _items = [_options objectForKey:@"displayItems"];
+
+  UIView *view = [self createPickerView];
+
+  NSDictionary *defaultItems = [_options objectForKey:@"defaultItems"];
+  _itemsSelectedIndexes = [@{} mutableCopy];
+
+  for (int columnIndex = 0; columnIndex < _items.count; columnIndex++) {
+    NSString *columnIndexString = [NSString stringWithFormat:@"%i", columnIndex];
+    NSInteger initialValueIndex = 0;
+
+    if (defaultItems) {
+      NSString *value = [defaultItems objectForKey:columnIndexString];
+      NSUInteger index = [[_items objectAtIndex:columnIndex] indexOfObject:value];
+      if (NSNotFound != index) {
+        initialValueIndex = index;
+      }
+    }
+    [_itemsSelectedIndexes setValue:@(initialValueIndex) forKey:columnIndexString];
+    [_pickerView selectRow:initialValueIndex inComponent:columnIndex animated:NO];
+  }
+
+  if (IS_IPAD) {
+    return [self presentPopoverForView:view];
+  } else {
+    return [self presentModalViewForView:view];
+  }
+}
+
+- (void)hideSelector:(CDVInvokedUrlCommand *)command {
+  if (_callbackId) {
+    [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR] callbackId:_callbackId];
+    _callbackId = nil;
+  }
+
+  _callbackId = command.callbackId;
+  [self didDismissWithCancelButton:self];
+}
+
+- (UIView *)createPickerView {
+  // Initialize container view
+  UIView *view = [[UIView alloc] initWithFrame:CGRectMake(0, [self getSafeBottomPadding], self.viewSize.width, 280 + [self getSafeBottomPadding])];  
+  if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) {
+    [view setBackgroundColor:[UIColor colorWithRed:0.97 green:0.97 blue:0.97 alpha:1.0]];
+  }
+
+  // Initialize toolbar
+  UIToolbar *toolbar = [self createToolbar];
+  [view addSubview:toolbar];
+
+  // Initialize picker
+  _pickerView = [[UIPickerView alloc] initWithFrame:CGRectMake(0, 40.0f, self.viewSize.width, 280 - [self getSafeBottomPadding])];
+  [_pickerView setShowsSelectionIndicator:YES];
+  [_pickerView setDelegate:self];
+
+  // iOS7 picker draws a darkened alpha-only region on the first and last 8 pixels horizontally, but blurs the rest of its background.
+  // To make the whole popup appear to be edge-to-edge, add blurring to the remaining left and right edges.
+  if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) {
+    CGRect f = CGRectMake(0, toolbar.frame.origin.y, 8, view.frame.size.height - toolbar.frame.origin.y);
+
+    UIToolbar *leftEdge = [[UIToolbar alloc] initWithFrame:f];
+    f.origin.x = view.frame.size.width - 8;
+
+    UIToolbar *rightEdge = [[UIToolbar alloc] initWithFrame:f];
+    [view insertSubview:leftEdge atIndex:0];
+    [view insertSubview:rightEdge atIndex:0];
+  }
+
+  [view addSubview:self.pickerView];
+
+  return view;
+}
+
+- (UIToolbar *)createToolbar {
+  UIToolbar *toolbar = [[UIToolbar alloc] initWithFrame: CGRectMake(0, 0, self.viewSize.width, 44)];
+  toolbar.barStyle = (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) ? UIBarStyleDefault : UIBarStyleBlackTranslucent;
+  NSMutableArray *buttons =[[NSMutableArray alloc] init];
+
+  // Create Cancel button
+  UIBarButtonItem *cancelButton = [[UIBarButtonItem alloc] initWithTitle:[_options objectForKey:@"negativeButtonText"] style:UIBarButtonItemStylePlain target:self action:@selector(didDismissWithCancelButton:)];
+  [buttons addObject:cancelButton];
+
+  // Create title label aligned to center and appropriate spacers
+  UILabel *label =[[UILabel alloc] initWithFrame:CGRectMake(0, 0, 180, 30)];
+  [label setTextAlignment:NSTextAlignmentCenter];
+  [label setTextColor:(NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) ? [UIColor blackColor] : [UIColor whiteColor]];
+  [label setFont:[UIFont boldSystemFontOfSize:[[_options objectForKey:@"fontSize"] floatValue]]];
+  [label setBackgroundColor:[UIColor clearColor]];
+  [label setText:[_options objectForKey:@"title"]];
+
+  UIBarButtonItem *labelButton = [[UIBarButtonItem alloc] initWithCustomView:label];
+  UIBarButtonItem *flexSpace = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
+  [buttons addObject:flexSpace];
+  [buttons addObject:labelButton];
+  [buttons addObject:flexSpace];
+
+  // Create Done button
+  UIBarButtonItem *doneButton = [[UIBarButtonItem alloc] initWithTitle:[_options objectForKey:@"positiveButtonText"] style:UIBarButtonItemStyleDone target:self action:@selector(didDismissWithDoneButton:)];
+  [buttons addObject:doneButton];
+  [toolbar setItems:buttons animated:YES];
+
+  return toolbar;
+}
+
+- (void)sendResultsFromPickerView:(UIPickerView *)pickerView resultType:(SelectorResultType)resultType {
+  CDVPluginResult *pluginResult;
+
+  if (resultType == SelectorResultTypeDone) {
+    NSMutableArray *arr = [[NSMutableArray alloc] init];
+    NSArray *sortedKeys = [[_itemsSelectedIndexes allKeys] sortedArrayUsingSelector: @selector(compare:)];
+
+    for (NSString *key in sortedKeys) {
+      NSString *theKey = key;
+      NSInteger indexInDict = [theKey integerValue];
+      NSInteger index = [[_itemsSelectedIndexes objectForKey:key] integerValue];
+      NSString *indexAsString = [@(index) stringValue];
+
+      NSString *valueFound = _items[indexInDict][index];
+      NSDictionary *tmpDictionary = [NSDictionary dictionaryWithObjectsAndKeys:
+                                     indexAsString, @"index",
+                                     valueFound, [_options objectForKey:@"displayKey"], nil];
+
+      [arr addObject:tmpDictionary];
+    }
+
+    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:arr];
+  }
+
+  if (resultType == SelectorResultTypeCanceled) {
+    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR];
+  }
+
+  [self.commandDelegate sendPluginResult:pluginResult callbackId:_callbackId];
+  _callbackId = nil;
+}
+
+#pragma mark - Show picker
+
+- (void)presentModalViewForView:(UIView *)view {
+  [[NSNotificationCenter defaultCenter] addObserver:self
+                                           selector:@selector(didRotate:)
+                                               name:UIApplicationWillChangeStatusBarOrientationNotification
+                                             object:nil];
+
+  CGRect viewFrame = CGRectMake(0, 0, self.viewSize.width, self.viewSize.height);
+  [view setFrame:CGRectMake(0, viewFrame.size.height, viewFrame.size.width, 280 + [self getSafeBottomPadding])];
+
+  _modalView = [[UIView alloc] initWithFrame:viewFrame];
+  [_modalView setBackgroundColor:[UIColor clearColor]];
+  [_modalView addSubview:view];
+
+  // Add the modal view to current controller
+  [self.webView.superview addSubview:self.modalView];
+  [self.webView.superview bringSubviewToFront:self.modalView];
 
 
+  // Present the view animated
+  [UIView animateWithDuration:0.3
+                        delay:0.0
+                      options: 0
+                   animations:^{
+                     [_modalView.subviews[0] setFrame: CGRectOffset(viewFrame, 0, viewFrame.size.height - (280 + [self getSafeBottomPadding]) - [self getSafeBottomPadding])];
+                     [_modalView setBackgroundColor:[UIColor colorWithWhite:0.0 alpha:0.5]];
+                   }
+                   completion:nil];
+}
 
-@implementation PhotoViewer
+- (void)presentPopoverForView:(UIView *)view {
+  UIViewController *popoverContent = [[UIViewController alloc] initWithNibName:nil bundle:nil];
+  popoverContent.view = view;
+  popoverContent.preferredContentSize = view.frame.size;
 
-- (void)setupDocumentControllerWithURL:(NSURL *)url andTitle:(NSString *)title
-{
-    if (self.docInteractionController == nil) {
-        self.docInteractionController = [UIDocumentInteractionController interactionControllerWithURL:url];
-        self.docInteractionController.name = title;
-        self.docInteractionController.delegate = self;
+  self.popoverController = [[UIPopoverController alloc] initWithContentViewController:popoverContent];
+  self.popoverController.delegate = self;
+
+  // Present the popover view non-modal with a refrence to the button pressed within the current view
+  // Display picker at the center of the view
+  CGRect sourceRect = CGRectMake(self.webView.superview.center.x, self.webView.superview.center.y, 1, 1);
+  [self.popoverController presentPopoverFromRect:sourceRect
+                                          inView:self.webView.superview
+                        permittedArrowDirections: 0
+                                        animated:YES];
+}
+
+# pragma mark - Dismiss picker
+
+- (void)didRotate:(NSNotification *)notification {
+  UIInterfaceOrientationMask supportedInterfaceOrientations = (UIInterfaceOrientationMask) [[UIApplication sharedApplication] supportedInterfaceOrientationsForWindow:[UIApplication sharedApplication].keyWindow];
+
+  if (OrientationMaskSupportsOrientation(supportedInterfaceOrientations, DEVICE_ORIENTATION)) {
+    if (IS_IPAD) {
+      [self dismissPopoverController:_popoverController animated:YES];
     } else {
-        self.docInteractionController.name = title;
-        self.docInteractionController.URL = url;
+      [self dismissModalView:_modalView animated:YES];
     }
+
+    [self sendResultsFromPickerView:_pickerView resultType:SelectorResultTypeCanceled];
+  }
 }
 
-- (UIDocumentInteractionController *) setupControllerWithURL: (NSURL*) fileURL
-                                               usingDelegate: (id <UIDocumentInteractionControllerDelegate>) interactionDelegate {
+- (IBAction)didDismissWithDoneButton:(id)sender {
+  if (IS_IPAD) {
+    [self dismissPopoverController:_popoverController animated:YES];
+  } else {
+    [self dismissModalView:_modalView animated:YES];
+  }
 
-    UIDocumentInteractionController *interactionController = [UIDocumentInteractionController interactionControllerWithURL: fileURL];
-    interactionController.delegate = interactionDelegate;
-
-    return interactionController;
+  [self sendResultsFromPickerView:_pickerView resultType:SelectorResultTypeDone];
 }
 
-- (UIViewController *) documentInteractionControllerViewControllerForPreview:(UIDocumentInteractionController *) controller {
-    isOpen = false;
-    return self.viewController;
+- (IBAction)didDismissWithCancelButton:(id)sender {
+  if (IS_IPAD) {
+    [self dismissPopoverController:_popoverController animated:YES];
+  } else {
+    [self dismissModalView:_modalView animated:YES];
+  }
+
+  [self sendResultsFromPickerView:_pickerView resultType:SelectorResultTypeCanceled];
 }
 
-- (void)show:(CDVInvokedUrlCommand*)command
-{
-    if (isOpen == false) {
-        [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-        [[NSNotificationCenter defaultCenter]
-         addObserver:self selector:@selector(orientationChanged:)
-         name:UIDeviceOrientationDidChangeNotification
-         object:[UIDevice currentDevice]];
-        isOpen = true;
-        UIActivityIndicatorView *activityIndicator = [[UIActivityIndicatorView alloc] initWithFrame:self.viewController.view.frame];
-        [activityIndicator setActivityIndicatorViewStyle:UIActivityIndicatorViewStyleWhiteLarge];
-        [activityIndicator.layer setBackgroundColor:[[UIColor colorWithWhite:0.0 alpha:0.30] CGColor]];
-        CGPoint center = self.viewController.view.center;
-        activityIndicator.center = center;
-        [self.viewController.view addSubview:activityIndicator];
+- (void)popoverControllerDidDismissPopover:(UIPopoverController *)popoverController {
+  [self sendResultsFromPickerView:_pickerView resultType:SelectorResultTypeCanceled];
+}
 
-        [activityIndicator startAnimating];
+- (void)dismissPopoverController:(UIPopoverController *)popoverController animated:(Boolean)animated {
+  [popoverController dismissPopoverAnimated:animated];
+}
 
-        CDVPluginResult* pluginResult = nil;
-        NSString* url = [command.arguments objectAtIndex:0];
-        NSString* title = [command.arguments objectAtIndex:1];
-        BOOL isShareEnabled = FALSE; //[[command.arguments objectAtIndex:2] boolValue];
-        showCloseBtn = [[command.arguments objectAtIndex:3] boolValue];
-        copyToReference = [[command.arguments objectAtIndex:4] boolValue];
-        NSString* headers = [command.arguments objectAtIndex:5];
-        if (headers != nil && headers != (id)[NSNull null]) {
-            [self headers:headers];
-        }
-        
-        if ([url rangeOfString:@"http"].location == 0) {
-            copyToReference = true;
-        }
+- (void)dismissModalView:(UIView *)modalView animated:(Boolean)animated {
+  [[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationWillChangeStatusBarOrientationNotification object:nil];
 
-        if (url != nil && [url length] > 0) {
-            [self.commandDelegate runInBackground:^{
-                if(isShareEnabled) {
-                    self.documentURLs = [NSMutableArray array];
-                }
+  // Hide the view animated
+  [UIView animateWithDuration:0.3
+                        delay:0.0
+                      options: 0
+                   animations:^{
+                     CGRect viewFrame = CGRectMake(0, 0, self.viewSize.width, self.viewSize.height);
+                     [_modalView.subviews[0] setFrame: CGRectOffset(viewFrame, 0, viewFrame.size.height)];
+                     [_modalView setBackgroundColor:[UIColor clearColor]];
+                   }
+                   completion:^(BOOL finished) {
+                     [_modalView removeFromSuperview];
+                   }];
+}
 
-                NSURL *URL = [self localFileURLForImage:url];
+#pragma mark - UIPickerViewDelegate
 
-                if (URL) {
-                    if(isShareEnabled){
-                        [self.documentURLs addObject:URL];
-                        [self setupDocumentControllerWithURL:URL andTitle:title];
-                        double delayInSeconds = 0.1;
-                        dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, delayInSeconds * NSEC_PER_SEC);
-                        dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
-                            [activityIndicator stopAnimating];
-                            [self.docInteractionController presentPreviewAnimated:YES];
-                            //[self.docInteractionController presentPreviewAnimated:NO];
+- (void)pickerView:(UIPickerView *)pickerView didSelectRow:(NSInteger)row inComponent:(NSInteger)component {
+  // The parameters named row and component represents what was selected.
+  NSString* key = [NSString stringWithFormat:@"%li", (long)component];
+  Boolean timeRange = [[_options objectForKey:@"timeRange"] Boolean];
+  [_itemsSelectedIndexes setValue:@(row) forKey:key];
 
-                        });
-                    } else {
-                        dispatch_async(dispatch_get_main_queue(), ^{
-                            [self showFullScreen:URL andTitle:title];
-                            [activityIndicator stopAnimating];
-                        });
-                    }
+  if (timeRange && component == 0 && row < 23) {
+      //  for time range pickers
+      [pickerView selectRow:(row+1) inComponent:(3) animated:(TRUE)];      
+  }
+}
 
-                } else {
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [activityIndicator stopAnimating];
-                        [self closeImage];
-                        // show an alert to the user
-                        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Photo viewer error"
-                                                                        message:@"The file to show is not a valid image, or could not be loaded."
-                                                                       delegate:self
-                                                              cancelButtonTitle:@"OK"
-                                                              otherButtonTitles:nil];
-                        [alert show];
-                    });
-                }
-            }];
-            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
-        } else {
-            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR];
-        }
+- (UIView *)pickerView:(UIPickerView *)pickerView viewForRow:(NSInteger)row forComponent:(NSInteger)component reusingView:(UIView *)view {
+  UILabel* pickerLabel = (UILabel*)view;
+  if (!pickerLabel) {
+    pickerLabel = [[UILabel alloc] init];
+    pickerLabel.font = [UIFont fontWithName:@"SourceSansPro-Semibold" size:[[_options objectForKey:@"fontSize"] floatValue]];
+    pickerLabel.textAlignment=NSTextAlignmentCenter;
+  }
+  [pickerLabel setText:_items[component][row]];
+  return pickerLabel;
+}
 
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+- (NSInteger)pickerView:(UIPickerView *)pickerView numberOfRowsInComponent:(NSInteger)component {
+  return [_items[component] count];
+}
+
+- (NSInteger)numberOfComponentsInPickerView:(UIPickerView *)pickerView {
+  return _items.count;
+}
+
+- (NSString *)pickerView:(UIPickerView *)pickerView titleForRow:(NSInteger)row forComponent:(NSInteger)component {
+  // NSString* label = [NSString stringWithFormat:@"%@ mins", _items[component][row]];
+  return _items[component][row];
+}
+
+- (CGFloat)pickerView:(UIPickerView *)pickerView widthForComponent:(NSInteger)component {
+  if (self.items.count == 2) {
+    return ((pickerView.frame.size.width) / 2) - 40;
+  } else if (self.items.count > 2) {
+    return (pickerView.frame.size.width) / self.items.count;
+  } else {
+    return pickerView.frame.size.width - 20;
+  }
+}
+
+#pragma mark - Uitilities
+
+- (CGSize)viewSize {
+  if (IS_IPAD) {
+    return CGSizeMake(500, 320);
+  }
+
+#if defined(__IPHONE_8_0)
+  if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_7_1) {
+    //iOS 7.1 or earlier
+    if ([self isViewPortrait])
+      return CGSizeMake(320 , IS_WIDESCREEN ? 568 : 480);
+    return CGSizeMake(IS_WIDESCREEN ? 568 : 480, 320);
+  } else {
+    //iOS 8 or later
+    return [[UIScreen mainScreen] bounds].size;
+  }
+#else
+  if ([self isViewPortrait]) {
+    return CGSizeMake(320 , IS_WIDESCREEN ? 568 : 480);
+  }
+  return CGSizeMake(IS_WIDESCREEN ? 568 : 480, 320);
+#endif
+}
+
+- (CGFloat) getSafeBottomPadding {
+    CGFloat bottomPadding = 0.0f;
+    if (@available(iOS 11.0, *)) {
+        UIWindow *window = UIApplication.sharedApplication.keyWindow;
+        bottomPadding = window.safeAreaInsets.bottom; // add some extra padding
     }
+
+    return bottomPadding;
 }
 
-- (NSURL *)localFileURLForImage:(NSString *)image
-{
-    Boolean isFirebase = [image rangeOfString:@"firebase"].length > 0;
-    NSString* webStringURL = image;
-    if (!isFirebase) {
-      webStringURL = [image stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLFragmentAllowedCharacterSet]];
-    }
-    NSURL* fileURL = [NSURL URLWithString:webStringURL];
-
-    if (copyToReference && ![fileURL isFileReferenceURL]) {
-        NSError* error = nil;
-        NSData *data;
-        if (headers && [headers count] > 0) {
-            data = [self imageDataFromURLWithHeaders:webStringURL];
-        } else {
-            data = [NSData dataWithContentsOfURL:fileURL options:0 error:&error];
-        }
-        if (error)
-            return nil;
-        
-        if( data ) {
-            // save this image to a temp folder
-            NSURL *tmpDirURL = [NSURL fileURLWithPath:NSTemporaryDirectory() isDirectory:YES];
-            NSString *filename = [[NSUUID UUID] UUIDString];
-            NSString *ext = [self contentTypeForImageData:data];
-            if (ext == nil)
-                return nil;
-            fileURL = [[tmpDirURL URLByAppendingPathComponent:filename] URLByAppendingPathExtension:ext];
-            [[NSFileManager defaultManager] createFileAtPath:[fileURL path] contents:data attributes:nil];
-        }
-    }
-    return fileURL;
-}
-
-- (NSString *)contentTypeForImageData:(NSData *)data {
-    uint8_t c;
-    [data getBytes:&c length:1];
-
-    switch (c) {
-        case 0xFF:
-            return @"jpeg";
-        case 0x89:
-            return @"png";
-        case 0x47:
-            return @"gif";
-        case 0x42:
-            return @"bmp";
-        case 0x49:
-        case 0x4D:
-            return @"tiff";
-    }
-    return nil;
-}
-
-
--(UIView *) viewForZoomingInScrollView:(UIScrollView *)inScroll {
-    NSArray *subviews = [inScroll subviews];
-    return subviews[0];
-}
-
-//This will create a temporary image view and animate it to fullscreen
-- (void)showFullScreen:(NSURL *)url andTitle:(NSString *)title {
-
-    CGFloat viewWidth = self.viewController.view.bounds.size.width;
-    CGFloat viewHeight = self.viewController.view.bounds.size.height;
-
-    //fullView is gloabal, So we can acess any time to remove it
-    fullView = [[UIScrollView alloc] initWithFrame:CGRectMake(0, 0, viewWidth, viewHeight)];
-    [fullView setBackgroundColor:[UIColor blackColor]];
-
-    // For supporting zoom,
-    fullView.minimumZoomScale = 1.0;
-    fullView.maximumZoomScale = 3.0;
-    fullView.clipsToBounds = YES;
-    fullView.delegate = self;
-
-    imageView = [[UIImageView alloc]init];
-    [imageView setContentMode:UIViewContentModeScaleAspectFit];
-    UIImage *image = [UIImage imageWithContentsOfFile:url.path];
-    [imageView setBackgroundColor:[UIColor clearColor]];
-    imageView.image = image;
-    imageView.contentMode = UIViewContentModeScaleAspectFit;
-
-    [imageView setFrame:CGRectMake(0, 0, viewWidth, viewHeight)];
-
-    [fullView addSubview:imageView];
-    fullView.contentSize = imageView.frame.size;
-
-    [self.viewController.view addSubview:fullView];
-
-    if(showCloseBtn) {
-        closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-        [closeBtn setTitle:@"✕" forState:UIControlStateNormal];
-        closeBtn.titleLabel.font = [UIFont systemFontOfSize: 32];
-        [closeBtn setTitleColor:[UIColor colorWithRed:255/255.0 green:255/255.0 blue:255/255.0 alpha:0.6] forState:UIControlStateNormal];
-        [closeBtn setFrame:CGRectMake(0, viewHeight - 50, viewWidth, 50)];
-        closeBtn.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
-        closeBtn.contentEdgeInsets = UIEdgeInsetsMake(0, 10, 0, 0);
-        [closeBtn setBackgroundColor:[UIColor colorWithRed:0.0 green:0.0 blue:0.0 alpha:0.6]];
-        [closeBtn addTarget:self action:@selector(closeButtonPressed:) forControlEvents:UIControlEventTouchUpInside];
-        [self.viewController.view addSubview:closeBtn];
-        
-        imageLabel = [[UILabel alloc] initWithFrame:CGRectMake(60, viewHeight - 50, viewWidth - 120, 50)];
-        imageLabel.numberOfLines = 0;
-        imageLabel.lineBreakMode = NSLineBreakByWordWrapping;
-        imageLabel.minimumScaleFactor = 0.5;
-        imageLabel.adjustsFontSizeToFitWidth = YES;
-        
-        [imageLabel setTextAlignment:NSTextAlignmentCenter];
-        [imageLabel setTextColor:[UIColor whiteColor]];
-        [imageLabel setBackgroundColor:[UIColor clearColor]];
-        [imageLabel setFont:[UIFont fontWithName: @"San Fransisco" size: 14.0f]];
-        if (title != nil && title != (id)[NSNull null]) [imageLabel setText:title];
-        
-        [self.viewController.view addSubview:imageLabel];
-        
-    } else {
-        UITapGestureRecognizer *singleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(fullimagetapped:)];
-        singleTap.numberOfTapsRequired = 1;
-        singleTap.numberOfTouchesRequired = 1;
-        [fullView addGestureRecognizer:singleTap];
-        [fullView setUserInteractionEnabled:YES];
-    }
-}
-
-- (void)fullimagetapped:(UIGestureRecognizer *)gestureRecognizer {
-    [self closeImage];
-}
-
-- (void)closeButtonPressed:(UIButton *)button {
-    [closeBtn removeFromSuperview];
-    [imageLabel removeFromSuperview];
-    
-    closeBtn = nil;
-    imageLabel = nil;
-    [self closeImage];
-}
-
-- (void)closeImage {
-    isOpen = false;
-    [fullView removeFromSuperview];
-    fullView = nil;
-}
-
-- (void) orientationChanged:(NSNotification *)note
-{
-    if(fullView != nil) {
-        CGFloat viewWidth = self.viewController.view.bounds.size.width;
-        CGFloat viewHeight = self.viewController.view.bounds.size.height;
-
-        [fullView setFrame:CGRectMake(0, 0, viewWidth, viewHeight)];
-        [imageView setFrame:CGRectMake(0, 0, viewWidth, viewHeight)];
-        fullView.contentSize = imageView.frame.size;
-        [closeBtn setFrame:CGRectMake(0, viewHeight - 50, 50, 50)];
-    }
-}
-
-- (NSDictionary *)headers:(NSString *)headerString {
-    if (headerString == nil || [headerString length] == 0) {
-        return nil;
-    }
-    
-    NSData *jsonData = [headerString dataUsingEncoding:NSUTF8StringEncoding];
-    //    Note that JSONObjectWithData will return either an NSDictionary or an NSArray, depending whether your JSON string represents an a dictionary or an array.
-    NSDictionary *jsonDictionary = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:nil];
-    NSLog(@"headers = %@", jsonDictionary);
-    return jsonDictionary;
-}
-
-- (NSData *)imageDataFromURLWithHeaders:(NSString *)urlString {
-    NSURL *url = [NSURL URLWithString:urlString];
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
-    
-    for(NSString *key in headers) {
-        NSString *value = [headers objectForKey:key];
-        [request setValue:value forHTTPHeaderField:key];
-    }
-    
-    NSData *data = [NSURLConnection sendSynchronousRequest:request
-                                         returningResponse:nil
-                                                     error:nil];
-    return data;
+- (BOOL)isViewPortrait {
+  return UIInterfaceOrientationIsPortrait([UIApplication sharedApplication].statusBarOrientation);
 }
 
 @end
