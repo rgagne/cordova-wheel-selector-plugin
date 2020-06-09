@@ -83,7 +83,7 @@ SelectorCordovaPlugin.prototype.show = function(options, success_callback, error
       positiveButtonText: options.positiveButtonText || 'Done',
       negativeButtonText: options.negativeButtonText || 'Cancel',
       fontSize: options.fontSize || 16,
-      timeRange: options.timeRange || false
+      variant: options.variant || "list"
     };
 
     for (i in options.items) {

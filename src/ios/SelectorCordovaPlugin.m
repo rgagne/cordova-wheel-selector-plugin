@@ -286,10 +286,10 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 - (void)pickerView:(UIPickerView *)pickerView didSelectRow:(NSInteger)row inComponent:(NSInteger)component {
   // The parameters named row and component represents what was selected.
   NSString* key = [NSString stringWithFormat:@"%li", (long)component];
-  Boolean timeRange = [[_options objectForKey:@"timeRange"] boolValue];
+  NSString* variant = [_options objectForKey:@"variant"];
   [_itemsSelectedIndexes setValue:@(row) forKey:key];
 
-  if (timeRange && component == 0 && row < 23) {
+  if ([variant isEqualToString:@"span"] && component == 0 && row < 23) {
       //  for time range pickers
       [pickerView selectRow:(row+1) inComponent:(3) animated:(TRUE)];      
   }
