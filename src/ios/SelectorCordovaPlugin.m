@@ -356,6 +356,16 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 #endif
 }
 
+- (CGFloat) getSafeBottomPadding {	
+    CGFloat bottomPadding = 0.0f;	
+    if (@available(iOS 11.0, *)) {	
+        UIWindow *window = UIApplication.sharedApplication.keyWindow;	
+        bottomPadding = window.safeAreaInsets.bottom; // add some extra padding	
+    }	
+
+    return bottomPadding;	
+}
+
 - (BOOL)isViewPortrait {
   return UIInterfaceOrientationIsPortrait([UIApplication sharedApplication].statusBarOrientation);
 }
