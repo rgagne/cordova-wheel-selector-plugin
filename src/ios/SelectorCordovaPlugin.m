@@ -291,7 +291,9 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 
   if ([variant isEqualToString:@"span"] && component == 0 && row < 23) {
       //  for time range pickers
-      [pickerView selectRow:(row+1) inComponent:(3) animated:(TRUE)];      
+      [pickerView selectRow:(row+1) inComponent:(3) animated:(TRUE)];
+      NSString* pair = [NSString stringWithFormat:@"%li", (long)3];
+      [_itemsSelectedIndexes setValue:@(row+1) forKey:pair];
   }
 }
 
@@ -352,16 +354,6 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
   }
   return CGSizeMake(IS_WIDESCREEN ? 568 : 480, 320);
 #endif
-}
-
-- (CGFloat) getSafeBottomPadding {
-    CGFloat bottomPadding = 0.0f;
-    if (@available(iOS 11.0, *)) {
-        UIWindow *window = UIApplication.sharedApplication.keyWindow;
-        bottomPadding = window.safeAreaInsets.bottom; // add some extra padding
-    }
-
-    return bottomPadding;
 }
 
 - (BOOL)isViewPortrait {
