@@ -78,8 +78,10 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 - (UIView *)createPickerView {
   // Initialize container view
   UIView *view = [[UIView alloc] initWithFrame:CGRectMake(0, [self getSafeBottomPadding], self.viewSize.width, 280 + [self getSafeBottomPadding])];  
-  if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) {
-    [view setBackgroundColor:[UIColor colorWithRed:0.97 green:0.97 blue:0.97 alpha:1.0]];
+  if (@available(iOS 13, *)) {
+      [view setBackgroundColor:[UIColor systemBackgroundColor]];
+  } else if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) {
+      [view setBackgroundColor:[UIColor colorWithRed:0.97 green:0.97 blue:0.97 alpha:1.0]];
   }
 
   // Initialize toolbar
@@ -121,7 +123,12 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
   // Create title label aligned to center and appropriate spacers
   UILabel *label =[[UILabel alloc] initWithFrame:CGRectMake(0, 0, 180, 30)];
   [label setTextAlignment:NSTextAlignmentCenter];
-  [label setTextColor:(NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) ? [UIColor blackColor] : [UIColor whiteColor]];
+    if (@available(iOS 13, *)) {
+        [label setTextColor:[UIColor labelColor]];        
+    } else {
+        [label setTextColor:(NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) ? [UIColor blackColor] : [UIColor whiteColor]];        
+    }
+  
   [label setFont:[UIFont boldSystemFontOfSize:[[_options objectForKey:@"fontSize"] floatValue]]];
   [label setBackgroundColor:[UIColor clearColor]];
   [label setText:[_options objectForKey:@"title"]];
