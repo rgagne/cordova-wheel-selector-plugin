@@ -307,7 +307,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
       //  for time range pickers
       NSString* pair = [NSString stringWithFormat:@"%li", (long)3];
       NSInteger index = [[_itemsSelectedIndexes objectForKey:pair] integerValue];
-      if (index >= row) {
+      if (index > row) {
           [pickerView selectRow:(row-1) inComponent:(0) animated:(TRUE)];
           [_itemsSelectedIndexes setValue:@(row-1) forKey:pair];
       }
