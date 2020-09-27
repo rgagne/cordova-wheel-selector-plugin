@@ -300,12 +300,13 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
       //  for time range pickers
       [pickerView selectRow:(row+1) inComponent:(3) animated:(TRUE)];
       NSString* pair = [NSString stringWithFormat:@"%li", (long)3];
-      [_itemsSelectedIndexes setValue:@(row+1) forKey:pair];
+      NSInteger index = [[_itemsSelectedIndexes objectForKey:pair] integerValue];
+      if (row > index) [_itemsSelectedIndexes setValue:@(row+1) forKey:pair];
   }
   
   if ([variant isEqualToString:@"span"] && component == 3) {
       //  for time range pickers
-      NSString* pair = [NSString stringWithFormat:@"%li", (long)3];
+      NSString* pair = [NSString stringWithFormat:@"%li", (long)0];
       NSInteger index = [[_itemsSelectedIndexes objectForKey:pair] integerValue];
       if (index > row) {
           [pickerView selectRow:(row-1) inComponent:(0) animated:(TRUE)];
