@@ -296,14 +296,14 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
   NSString* variant = [_options objectForKey:@"variant"];
   [_itemsSelectedIndexes setValue:@(row) forKey:key];
 
-  if ([variant isEqualToString:@"span"] && component == 0 && row < 23) {
+  if ([variant isEqualToString:@"span"] && component == 0) {
       //  for time range pickers
       [pickerView selectRow:(row+1) inComponent:(3) animated:(TRUE)];
       NSString* pair = [NSString stringWithFormat:@"%li", (long)3];
       [_itemsSelectedIndexes setValue:@(row+1) forKey:pair];
   }
   
-  if ([variant isEqualToString:@"span"] && component == 3 && row < 23) {
+  if ([variant isEqualToString:@"span"] && component == 3) {
       //  for time range pickers
       NSString* pair = [NSString stringWithFormat:@"%li", (long)3];
       NSInteger index = [[_itemsSelectedIndexes objectForKey:pair] integerValue];
