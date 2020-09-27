@@ -305,17 +305,19 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 
   if ([variant isEqualToString:@"span"] && component == 0) {
       //  for time range pickers
-      [pickerView selectRow:(row+1) inComponent:(3) animated:(TRUE)];
       NSString* pair = [NSString stringWithFormat:@"%li", (long)3];
       NSInteger index = [[_itemsSelectedIndexes objectForKey:pair] integerValue];
-      if (row > index) [_itemsSelectedIndexes setValue:@(row+1) forKey:pair];
+      if (row > index) {
+          [pickerView selectRow:(row+1) inComponent:(3) animated:(TRUE)];
+          [_itemsSelectedIndexes setValue:@(row+1) forKey:pair];
+      }
   }
   
   if ([variant isEqualToString:@"span"] && component == 3) {
       //  for time range pickers
       NSString* pair = [NSString stringWithFormat:@"%li", (long)0];
       NSInteger index = [[_itemsSelectedIndexes objectForKey:pair] integerValue];
-      if (index > row) {
+      if (row < index) {
           [pickerView selectRow:(row-1) inComponent:(0) animated:(TRUE)];
           [_itemsSelectedIndexes setValue:@(row-1) forKey:pair];
       }
