@@ -52,6 +52,13 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
       NSUInteger index = [[_items objectAtIndex:columnIndex] indexOfObject:value];
       if (NSNotFound != index) {
         initialValueIndex = index;
+      } else {
+        NSString *rowString = [NSString stringWithFormat:@"%i", columnIndex+_items.count];
+        NSString *rowValue = [defaultItems objectForKey:rowString];
+        if (rowValue != nil) {
+          NSInteger row = [rowValue intValue];
+          initialValueIndex = row;
+        }
       }
     }
     [_itemsSelectedIndexes setValue:@(initialValueIndex) forKey:columnIndexString];
