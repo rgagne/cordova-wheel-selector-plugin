@@ -184,16 +184,18 @@ public class SelectorCordovaPlugin extends CordovaPlugin {
     public static List<PickerView> getPickerViews(Activity activity, JSONArray items, JSONObject defaultSelectedValues) throws JSONException {
         List<PickerView> views = new ArrayList<PickerView>();
         for (int i = 0; i < items.length(); ++i) {
-            if(defaultSelectedValues != null && defaultSelectedValues.length() == items.length()){
+            if(defaultSelectedValues != null && defaultSelectedValues.length() >= items.length()){
 
                 try {
                     String defaultSelctedValue = defaultSelectedValues.getString(Integer.toString(i));
-                    views.add(new PickerView(activity, items.getJSONArray(i), defaultSelctedValue));
+                    String fallback = defaultSelectedValues.optString(Integer.toString(i + items.length()), "-1");
+                    Integer index = Integer.parseInt(fallback);
+                    views.add(new PickerView(activity, items.getJSONArray(i), defaultSelctedValue, index));
                 }catch(JSONException je) {
-                    views.add(new PickerView(activity, items.getJSONArray(i), ""));
+                    views.add(new PickerView(activity, items.getJSONArray(i), "", -1));
                 }
             }else {
-                views.add(new PickerView(activity, items.getJSONArray(i), ""));
+                views.add(new PickerView(activity, items.getJSONArray(i), "", -1));
             }
         }
         return views;
@@ -252,12 +254,14 @@ class PickerView {
     private String defaultSelectedItemValue;
     private Activity activity;
     private NumberPicker picker;
+    private Integer fallback;
 
     private LinearLayout.LayoutParams numPicerParams;
 
-    public PickerView(Activity activity, JSONArray args, String defaulSelectedtItem) {
+    public PickerView(Activity activity, JSONArray args, String defaulSelectedtItem, Integer defaultFallback) {
         dataToShow = SelectorCordovaPlugin.toStringArray(args);
         defaultSelectedItemValue = defaulSelectedtItem;
+        fallback = defaultFallback;
         this.activity = activity;
     }
 
@@ -272,7 +276,9 @@ class PickerView {
             if(defaultSelectedItemValue != null && defaultSelectedItemValue.length() > 0)
                 index = Arrays.asList(dataToShow).indexOf(defaultSelectedItemValue);
 
-            if(index < 0)
+            if(index < 0 && fallback >= 0)
+                picker.setValue(fallback);
+            else if (index < 0)
                 picker.setValue(0);
             else
                 picker.setValue(index);
