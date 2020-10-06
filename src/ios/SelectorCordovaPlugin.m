@@ -52,6 +52,13 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
       NSUInteger index = [[_items objectAtIndex:columnIndex] indexOfObject:value];
       if (NSNotFound != index) {
         initialValueIndex = index;
+      } else {
+        NSString *rowString = [NSString stringWithFormat:@"%i", columnIndex+_items.count];
+        NSString *rowValue = [defaultItems objectForKey:rowString];
+        if (rowValue != nil) {
+          NSInteger row = [rowValue intValue];
+          initialValueIndex = row;
+        }
       }
     }
     [_itemsSelectedIndexes setValue:@(initialValueIndex) forKey:columnIndexString];
@@ -78,8 +85,10 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 - (UIView *)createPickerView {
   // Initialize container view
   UIView *view = [[UIView alloc] initWithFrame:CGRectMake(0, [self getSafeBottomPadding], self.viewSize.width, 280 + [self getSafeBottomPadding])];  
-  if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) {
-    [view setBackgroundColor:[UIColor colorWithRed:0.97 green:0.97 blue:0.97 alpha:1.0]];
+  if (@available(iOS 13, *)) {
+      [view setBackgroundColor:[UIColor systemBackgroundColor]];
+  } else if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) {
+      [view setBackgroundColor:[UIColor colorWithRed:0.97 green:0.97 blue:0.97 alpha:1.0]];
   }
 
   // Initialize toolbar
@@ -121,7 +130,12 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
   // Create title label aligned to center and appropriate spacers
   UILabel *label =[[UILabel alloc] initWithFrame:CGRectMake(0, 0, 180, 30)];
   [label setTextAlignment:NSTextAlignmentCenter];
-  [label setTextColor:(NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) ? [UIColor blackColor] : [UIColor whiteColor]];
+    if (@available(iOS 13, *)) {
+        [label setTextColor:[UIColor labelColor]];        
+    } else {
+        [label setTextColor:(NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) ? [UIColor blackColor] : [UIColor whiteColor]];        
+    }
+  
   [label setFont:[UIFont boldSystemFontOfSize:[[_options objectForKey:@"fontSize"] floatValue]]];
   [label setBackgroundColor:[UIColor clearColor]];
   [label setText:[_options objectForKey:@"title"]];
@@ -286,7 +300,28 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 - (void)pickerView:(UIPickerView *)pickerView didSelectRow:(NSInteger)row inComponent:(NSInteger)component {
   // The parameters named row and component represents what was selected.
   NSString* key = [NSString stringWithFormat:@"%li", (long)component];
+  NSString* variant = [_options objectForKey:@"variant"];
   [_itemsSelectedIndexes setValue:@(row) forKey:key];
+
+  if ([variant isEqualToString:@"span"] && component == 0) {
+      //  for time range pickers
+      NSString* pair = [NSString stringWithFormat:@"%li", (long)3];
+      NSInteger index = [[_itemsSelectedIndexes objectForKey:pair] integerValue];
+      if (row > index) {
+          [pickerView selectRow:(row+1) inComponent:(3) animated:(TRUE)];
+          [_itemsSelectedIndexes setValue:@(row+1) forKey:pair];
+      }
+  }
+  
+  if ([variant isEqualToString:@"span"] && component == 3) {
+      //  for time range pickers
+      NSString* pair = [NSString stringWithFormat:@"%li", (long)0];
+      NSInteger index = [[_itemsSelectedIndexes objectForKey:pair] integerValue];
+      if (row < index) {
+          [pickerView selectRow:(row-1) inComponent:(0) animated:(TRUE)];
+          [_itemsSelectedIndexes setValue:@(row-1) forKey:pair];
+      }
+  }
 }
 
 - (UIView *)pickerView:(UIPickerView *)pickerView viewForRow:(NSInteger)row forComponent:(NSInteger)component reusingView:(UIView *)view {
@@ -319,7 +354,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
   } else if (self.items.count > 2) {
     return (pickerView.frame.size.width) / self.items.count;
   } else {
-    return pickerView.frame.size.width - 20;
+    return pickerView.frame.size.width - 10;
   }
 }
 
@@ -348,14 +383,14 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 #endif
 }
 
-- (CGFloat) getSafeBottomPadding {
-    CGFloat bottomPadding = 0.0f;
-    if (@available(iOS 11.0, *)) {
-        UIWindow *window = UIApplication.sharedApplication.keyWindow;
-        bottomPadding = window.safeAreaInsets.bottom; // add some extra padding
-    }
+- (CGFloat) getSafeBottomPadding {	
+    CGFloat bottomPadding = 0.0f;	
+    if (@available(iOS 11.0, *)) {	
+        UIWindow *window = UIApplication.sharedApplication.keyWindow;	
+        bottomPadding = window.safeAreaInsets.bottom; // add some extra padding	
+    }	
 
-    return bottomPadding;
+    return bottomPadding;	
 }
 
 - (BOOL)isViewPortrait {
