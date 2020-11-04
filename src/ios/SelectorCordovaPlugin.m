@@ -138,7 +138,12 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
   
   [label setFont:[UIFont boldSystemFontOfSize:[[_options objectForKey:@"fontSize"] floatValue]]];
   [label setBackgroundColor:[UIColor clearColor]];
-  [label setText:[_options objectForKey:@"title"]];
+
+  if ([_options objectForKey:@"title"] == "%date") {
+    [label setText:"Today"];
+  } else {
+    [label setText:[_options objectForKey:@"title"]];
+  }
 
   UIBarButtonItem *labelButton = [[UIBarButtonItem alloc] initWithCustomView:label];
   UIBarButtonItem *flexSpace = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
@@ -310,6 +315,14 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
       if (row > index) {
           [pickerView selectRow:(row+1) inComponent:(3) animated:(TRUE)];
           [_itemsSelectedIndexes setValue:@(row+1) forKey:pair];
+      }
+
+      if ([_options objectForKey:@"title"] == "%date") {
+          if (row > 23) {
+            [label setText:"Tomorrow"];
+          } else {
+            [label setText:"Today"];
+          }
       }
   }
   
