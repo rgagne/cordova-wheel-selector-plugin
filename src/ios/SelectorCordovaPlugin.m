@@ -319,9 +319,9 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 
       if ([[_options objectForKey:@"title"] isEqualToString:@"%date"]) {
           if (row > 23) {
-            [label setText:"Tomorrow"];
+            [label setText:@"Tomorrow"];
           } else {
-            [label setText:"Today"];
+            [label setText:@"Today"];
           }
       }
   }
