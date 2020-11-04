@@ -26,6 +26,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 @property (nonatomic, strong) UIView *modalView;
 @property (nonatomic, strong) NSArray *items;
 @property (nonatomic, strong) NSMutableDictionary *itemsSelectedIndexes;
+@property (nonatomic, strong) UILabel *label;
 
 @end
 
@@ -128,21 +129,21 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
   [buttons addObject:cancelButton];
 
   // Create title label aligned to center and appropriate spacers
-  UILabel *label =[[UILabel alloc] initWithFrame:CGRectMake(0, 0, 180, 30)];
-  [label setTextAlignment:NSTextAlignmentCenter];
+  _label =[[UILabel alloc] initWithFrame:CGRectMake(0, 0, 180, 30)];
+  [_label setTextAlignment:NSTextAlignmentCenter];
     if (@available(iOS 13, *)) {
-        [label setTextColor:[UIColor labelColor]];        
+        [_label setTextColor:[UIColor labelColor]];        
     } else {
-        [label setTextColor:(NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) ? [UIColor blackColor] : [UIColor whiteColor]];        
+        [_label setTextColor:(NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_6_1) ? [UIColor blackColor] : [UIColor whiteColor]];        
     }
   
-  [label setFont:[UIFont boldSystemFontOfSize:[[_options objectForKey:@"fontSize"] floatValue]]];
-  [label setBackgroundColor:[UIColor clearColor]];
+  [_label setFont:[UIFont boldSystemFontOfSize:[[_options objectForKey:@"fontSize"] floatValue]]];
+  [_label setBackgroundColor:[UIColor clearColor]];
 
   if ([[_options objectForKey:@"title"] isEqualToString:@"%date"]) {
-    [label setText:@"Today"];
+    [_label setText:@"Today"];
   } else {
-    [label setText:[_options objectForKey:@"title"]];
+    [_label setText:[_options objectForKey:@"title"]];
   }
 
   UIBarButtonItem *labelButton = [[UIBarButtonItem alloc] initWithCustomView:label];
@@ -319,9 +320,9 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 
       if ([[_options objectForKey:@"title"] isEqualToString:@"%date"]) {
           if (row > 23) {
-            [label setText:@"Tomorrow"];
+            [_label setText:@"Tomorrow"];
           } else {
-            [label setText:@"Today"];
+            [_label setText:@"Today"];
           }
       }
   }
