@@ -146,7 +146,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
     [_label setText:[_options objectForKey:@"title"]];
   }
 
-  UIBarButtonItem *labelButton = [[UIBarButtonItem alloc] initWithCustomView:label];
+  UIBarButtonItem *labelButton = [[UIBarButtonItem alloc] initWithCustomView:_label];
   UIBarButtonItem *flexSpace = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
   [buttons addObject:flexSpace];
   [buttons addObject:labelButton];
