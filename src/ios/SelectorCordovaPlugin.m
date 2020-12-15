@@ -141,7 +141,7 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
   [_label setBackgroundColor:[UIColor clearColor]];
 
   if ([[_options objectForKey:@"title"] isEqualToString:@"%date"]) {
-    [_label setText:@"Today"];
+    [_label setText:[_options objectForKey:@"label1"]];
   } else {
     [_label setText:[_options objectForKey:@"title"]];
   }
@@ -320,9 +320,9 @@ typedef NS_ENUM(NSInteger, SelectorResultType) {
 
       if ([[_options objectForKey:@"title"] isEqualToString:@"%date"]) {
           if (row > 23) {
-            [_label setText:@"Tomorrow"];
+            [_label setText:[_options objectForKey:@"label2"]];
           } else {
-            [_label setText:@"Today"];
+            [_label setText:[_options objectForKey:@"label1"]];
           }
       }
   }

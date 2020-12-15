@@ -28,7 +28,9 @@ SelectorCordovaPlugin.prototype.showSelector = function(options, success_callbac
       positiveButtonText: options.positiveButtonText || 'Done',
       negativeButtonText: options.negativeButtonText || 'Cancel',
       fontSize: options.fontSize || 16,
-      variant: options.variant || "list"
+      variant: options.variant || "list",
+      label1: options.label1 || "",
+      label2: options.label2 || ""
   };
 
   for(i in config.items) {
