@@ -95,7 +95,16 @@ public class SelectorCordovaPlugin extends CordovaPlugin {
                 public void run() {
 
                     AlertDialog.Builder builder = new AlertDialog.Builder(cordova.getActivity(), SELECTOR_THEME.getAlertBuilderTheme());
-                    builder.setTitle(title);
+                    // use date
+                    if (title.equals("%date")) {
+                        try {
+                            builder.setTitle(options.getString("label1"));
+                        } catch (JSONException je) {
+                            builder.setTitle("Today");
+                        }
+                    } else {
+                        builder.setTitle(title);
+                    }
                     builder.setCancelable(true);
                     List<PickerView> views = null;
                     try {
@@ -128,6 +137,12 @@ public class SelectorCordovaPlugin extends CordovaPlugin {
                                         public void onClick(DialogInterface dialog,
                                                             int id) {
                                             JSONArray userSelectedValues = new JSONArray();
+                                            String variant = "";
+                                            try {
+                                                variant = options.getString("variant");
+                                            } catch (JSONException je) {
+                                                variant = "data";
+                                            }
 
                                             JSONObject jsonValue = null;
                                             try {
@@ -143,6 +158,25 @@ public class SelectorCordovaPlugin extends CordovaPlugin {
                                                         jsonValue.put(displayKey, BLANK_STRING);
                                                     else
                                                         jsonValue.put(displayKey, value);
+
+                                                    int n = asFinal.get(i).getNumberPicker().getValue();
+                                                    if (variant.equals("span") && id == 0) {
+                                                        if (n > 23) {
+                                                            try {
+                                                                builder.setTitle(options.getString("label2"));
+                                                            } catch (JSONException je) {
+                                                                builder.setTitle("Tomorrow");
+                                                            }
+                                                        } else {
+                                                            try {
+                                                                builder.setTitle(options.getString("label1"));
+                                                            } catch (JSONException je) {
+                                                                builder.setTitle("Today");
+                                                            }
+                                                        }
+                                                    } else if (variant.equals("span") && id == 3) {
+
+                                                    }
 
                                                     userSelectedValues.put(jsonValue);
                                                 }
